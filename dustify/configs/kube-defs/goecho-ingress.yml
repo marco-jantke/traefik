@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: pathprefixstrip
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /treimann/goecho
+        backend:
+          serviceName: treimann-goecho
+          servicePort: 80

@@ -1,0 +1,19 @@
+[backends]{{range $backendName, $backend := .Backends}}
+    {{range $serverName, $server := $backend.Servers}}
+    [backends."{{$backendName}}".servers."{{$serverName}}"]
+    url = "{{$server.URL}}"
+    weight = 1
+    {{end}}
+{{end}}
+
+[frontends]{{range $frontendName, $frontend := .Frontends}}
+  [frontends."{{$frontendName}}"]
+  backend = "{{$frontend.Backend}}"
+  #passHostHeader = {{$frontend.PassHostHeader}}
+  passHostHeader = false
+  priority = 1
+    {{range $routeName, $route := $frontend.Routes}}
+    [frontends."{{$frontendName}}".routes."{{$routeName}}"]
+    rule = "{{$route.Rule}}"
+    {{end}}
+{{end}}

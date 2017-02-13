@@ -1,0 +1,19 @@
+{{$apps := .Applications}}
+[backends]{{range .Tasks}}
+    [backends."{{getBackend . $apps}}".servers."server-{{.ID | replace "." "-"}}"]
+    url = "{{getProtocol . $apps}}://{{.Host}}:{{getPort . $apps}}"
+    weight = 1
+{{end}}
+
+[frontends]{{range $apps}}
+  [frontends."{{.ID}}"]
+  backend = "{{.ID}}"
+  #passHostHeader = {{getPassHostHeader .}}
+  passHostHeader = false
+  priority = 1
+  entryPoints = [{{range getEntryPoints .}}
+    "{{.}}",
+  {{end}}]
+    [frontends."{{.ID}}".routes."{{.ID}}"]
+    rule = "{{getFrontendRule .}}"
+{{end}}
