@@ -1,8 +1,10 @@
 {{$apps := .Applications}}
 [backends]{{range .Tasks}}
+  {{ if not ( eq .State "TASK_KILLING" ) }}
     [backends."{{getBackend . $apps}}".servers."server-{{.ID | replace "." "-"}}"]
     url = "{{getProtocol . $apps}}://{{.Host}}:{{getPort . $apps}}"
     weight = 1
+  {{ end }}
 {{end}}
 
 [frontends]{{range $apps}}
