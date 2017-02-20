@@ -38,7 +38,7 @@ defaultEntryPoints = ["http"]
 # Default:
 [entryPoints]
   [entryPoints.http]
-  address = ":8080"
+  address = ":8084"
 
 # Enable retry sending request if network error
 #
