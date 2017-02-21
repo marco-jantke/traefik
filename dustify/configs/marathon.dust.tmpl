@@ -7,6 +7,14 @@
   {{ end }}
 {{end}}
 
+{{range .Applications}}
+{{ if hasLoadBalancerLabels . }}
+      [backends."{{getFrontendBackend . }}".loadbalancer]
+        method = "wrr"
+        sticky = {{getSticky .}}
+{{end}}
+{{end}}
+
 [frontends]{{range $apps}}
   [frontends."{{.ID}}"]
   backend = "{{.ID}}"
