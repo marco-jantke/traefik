@@ -44,14 +44,14 @@ defaultEntryPoints = ["http"]
 #
 # Optional
 #
-# [retry]
+[retry]
 
 # Number of attempts
 #
 # Optional
 # Default: (number servers in backend) -1
 #
-# attempts = 3
+attempts = 3
 
 ################################################################
 # Web configuration backend
