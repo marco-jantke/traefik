@@ -1,0 +1,39 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: traefik-ingress-controller
+  namespace: traefik
+  labels:
+    k8s-app: traefik-ingress-lb
+spec:
+  selector:
+    matchLabels:
+      k8s-app: traefik-ingress-lb
+  template:
+    metadata:
+      labels:
+        k8s-app: traefik-ingress-lb
+        name: traefik-ingress-lb
+    spec:
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: config
+        configMap:
+          name: traefik-config
+      containers:
+      - image: docker-registry.hc.ag/treimann/traefik:dust-%VERSION%
+        name: traefik-ingress-lb
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          hostPort: 80
+        - containerPort: 8080
+          hostPort: 8080
+        volumeMounts:
+        - mountPath: /etc/traefik
+          name: config
+        args:
+        - --configfile=/etc/traefik/traefik.dust.prod.toml
+        - --marathon.filename=/etc/traefik/marathon.dust.tmpl
+      nodeSelector:
+        dust.role: traefik
