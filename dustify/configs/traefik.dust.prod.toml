@@ -1,0 +1,125 @@
+################################################################
+# Global configuration
+################################################################
+
+# Timeout in seconds.
+# Duration to give active requests a chance to finish during hot-reloads
+#
+# Optional
+# Default: 10
+#
+graceTimeOut = 60
+
+# Periodically check if a new version has been released
+#
+# Optional
+# Default: true
+#
+checkNewVersion = false
+
+# Log level
+#
+# Optional
+# Default: "ERROR"
+#
+logLevel = "INFO"
+
+# Entrypoints to be used by frontends that do not specify any entrypoint.
+# Each frontend can specify its own entrypoints.
+#
+# Optional
+# Default: ["http"]
+#
+defaultEntryPoints = ["http"]
+
+# Entrypoints definition
+#
+# Optional
+# Default:
+[entryPoints]
+  [entryPoints.http]
+  address = ":80"
+
+# Enable retry sending request if network error
+#
+# Optional
+#
+[retry]
+
+# Number of attempts
+#
+# Optional
+# Default: (number servers in backend) -1
+#
+attempts = 4
+
+################################################################
+# Web configuration backend
+################################################################
+
+# Enable web configuration backend
+#
+# Optional
+#
+[web]
+
+# Web administration port
+#
+# Required
+#
+address = ":8080"
+
+# Set REST API to read-only mode
+#
+# Optional
+#
+ReadOnly = true
+
+# Enable more detailed statistics
+#
+[web.statistics]
+  RecentErrors = 10
+
+# To enable Traefik to export internal metrics to Prometheus
+#
+#[web.metrics.prometheus]
+#  Buckets=[0.1,0.3,1.2,5.0]
+
+
+################################################################
+# Mesos/Marathon configuration backend
+################################################################
+
+# Enable Marathon configuration backend
+#
+# Optional
+#
+[marathon]
+
+# Marathon server endpoint.
+# You can also specify multiple endpoint for Marathon:
+# endpoint := "http://10.241.1.71:8080,10.241.1.72:8080,10.241.1.73:8080"
+#
+# Required
+#
+endpoint = "http://prod-dust-mesos-master1.c.hcg-cloud.internal:8080,prod-dust-mesos-master2.c.hcg-cloud.internal:8080,prod-dust-mesos-master3.c.hcg-cloud.internal:8080"
+
+# Enable watch Marathon changes
+#
+# Optional
+#
+watch = true
+
+# Default domain used.
+# Can be overridden by setting the "traefik.domain" label on an application.
+#
+# Required
+#
+domain = "mesos.prod.hcg.cloud"
+
+# Expose Marathon apps by default in traefik
+#
+# Optional
+# Default: true
+#
+exposedByDefault = true
