@@ -13,6 +13,11 @@
         method = "wrr"
         sticky = {{getSticky .}}
 {{end}}
+{{ if hasHealthCheckLabels . }}
+      [backends."{{getFrontendBackend . }}".healthcheck]
+        URL = "{{getHealthCheckPath . }}"
+        interval = "{{getHealthCheckInterval . }}"
+{{end}}
 {{end}}
 
 [frontends]{{range $apps}}
