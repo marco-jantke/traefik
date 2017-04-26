@@ -37,3 +37,8 @@ spec:
         - --marathon.filename=/etc/traefik/marathon.dust.tmpl
       nodeSelector:
         dust.role: traefik
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: traefik
+          effect: NoExecute
