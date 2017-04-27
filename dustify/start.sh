@@ -48,7 +48,7 @@ readonly KUBE_NAMESPACE
 
 if [[ "${BUILD}" ]]; then
   echo "building traefik backend..."
-  ( cd "${PROJECTDIR}" && go build -o dist/traefik . )
+  ( cd "${PROJECTDIR}" && go build -o dist/traefik ./cmd/traefik )
 fi
 
 kube_params=
