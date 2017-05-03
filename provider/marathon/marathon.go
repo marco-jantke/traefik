@@ -401,7 +401,7 @@ func (p *Provider) getFrontendBackend(application marathon.Application) string {
 	if label, ok := p.getLabel(application, "traefik.backend"); ok {
 		return label
 	}
-	return application.ID
+	return provider.Replace("/", "-", application.ID)
 }
 
 func (p *Provider) getSubDomain(name string) string {
