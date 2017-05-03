@@ -22,7 +22,7 @@
 {{end}}
 {{ if hasHealthCheckLabels . }}
       [backends."backend{{getFrontendBackend . }}".healthcheck]
-        URL = "{{getHealthCheckPath . }}"
+        path = "{{getHealthCheckPath . }}"
         interval = "{{getHealthCheckInterval . }}"
 {{end}}
 {{end}}

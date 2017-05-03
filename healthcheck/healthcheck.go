@@ -2,6 +2,7 @@ package healthcheck
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -12,13 +13,10 @@ import (
 	"github.com/vulcand/oxy/roundrobin"
 )
 
-// DefaultInterval is the default health check interval.
-const DefaultInterval = 30 * time.Second
-
 var singleton *HealthCheck
 var once sync.Once
 
-// GetHealthCheck Get HealtchCheck Singleton
+// GetHealthCheck returns the health check which is guaranteed to be a singleton.
 func GetHealthCheck() *HealthCheck {
 	once.Do(func() {
 		singleton = newHealthCheck()
@@ -28,9 +26,13 @@ func GetHealthCheck() *HealthCheck {
 
 // Options are the public health check options.
 type Options struct {
-	URL      string
+	Path     string
 	Interval time.Duration
 	LB       LoadBalancer
+}
+
+func (opt Options) String() string {
+	return fmt.Sprintf("[Path: %s Interval: %s]", opt.Path, opt.Interval)
 }
 
 // BackendHealthCheck HealthCheck configuration for a backend
@@ -44,8 +46,6 @@ type BackendHealthCheck struct {
 type HealthCheck struct {
 	Backends map[string]*BackendHealthCheck
 	cancel   context.CancelFunc
-	// wg is for synchronization during testing only.
-	wg sync.WaitGroup
 }
 
 // LoadBalancer includes functionality for load-balancing management.
@@ -58,7 +58,6 @@ type LoadBalancer interface {
 func newHealthCheck() *HealthCheck {
 	return &HealthCheck{
 		Backends: make(map[string]*BackendHealthCheck),
-		wg:       sync.WaitGroup{},
 	}
 }
 
@@ -78,31 +77,30 @@ func (hc *HealthCheck) SetBackendsConfiguration(parentCtx context.Context, backe
 	}
 	ctx, cancel := context.WithCancel(parentCtx)
 	hc.cancel = cancel
-	hc.execute(ctx)
+
+	for backendID, backend := range hc.Backends {
+		currentBackendID := backendID
+		currentBackend := backend
+		safe.Go(func() {
+			hc.execute(ctx, currentBackendID, currentBackend)
+		})
+	}
 }
 
-func (hc *HealthCheck) execute(ctx context.Context) {
-	for backendID, backend := range hc.Backends {
-		currentBackend := backend
-		currentBackendID := backendID
-		safe.Go(func() {
-			hc.wg.Add(1)
-			defer hc.wg.Done()
-			log.Debugf("Initial healthcheck for currentBackend %s ", currentBackendID)
-			checkBackend(currentBackend)
-			ticker := time.NewTicker(currentBackend.Interval)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					log.Debugf("Stopping all current Healthcheck goroutines")
-					return
-				case <-ticker.C:
-					log.Debugf("Refreshing healthcheck for currentBackend %s ", currentBackendID)
-					checkBackend(currentBackend)
-				}
-			}
-		})
+func (hc *HealthCheck) execute(ctx context.Context, backendID string, backend *BackendHealthCheck) {
+	log.Debugf("Initial healthcheck for currentBackend %s ", backendID)
+	checkBackend(backend)
+	ticker := time.NewTicker(backend.Interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debugf("Stopping all current Healthcheck goroutines")
+			return
+		case <-ticker.C:
+			log.Debugf("Refreshing healthcheck for currentBackend %s ", backendID)
+			checkBackend(backend)
+		}
 	}
 }
 
@@ -133,7 +131,7 @@ func checkHealth(serverURL *url.URL, backend *BackendHealthCheck) bool {
 	client := http.Client{
 		Timeout: backend.requestTimeout,
 	}
-	resp, err := client.Get(serverURL.String() + backend.URL)
+	resp, err := client.Get(serverURL.String() + backend.Path)
 	if err == nil {
 		defer resp.Body.Close()
 	}

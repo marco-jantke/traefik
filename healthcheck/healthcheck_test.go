@@ -149,7 +149,7 @@ func TestSetBackendsConfiguration(t *testing.T) {
 
 			lb := &testLoadBalancer{RWMutex: &sync.RWMutex{}}
 			backend := NewBackendHealthCheck(Options{
-				URL:      "/path",
+				Path:     "/path",
 				Interval: healthCheckInterval,
 				LB:       lb,
 			})
@@ -163,9 +163,12 @@ func TestSetBackendsConfiguration(t *testing.T) {
 			healthCheck := HealthCheck{
 				Backends: make(map[string]*BackendHealthCheck),
 			}
-			healthCheck.SetBackendsConfiguration(ctx, map[string]*BackendHealthCheck{
-				"test_backend": backend,
-			})
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				healthCheck.execute(ctx, "id", backend)
+				wg.Done()
+			}()
 
 			// Make test timeout dependent on number of expected requests, health
 			// check interval, and a safety margin.
@@ -174,10 +177,11 @@ func TestSetBackendsConfiguration(t *testing.T) {
 			case <-time.After(timeout):
 				t.Fatal("test did not complete in time")
 			case <-ctx.Done():
-				healthCheck.wg.Wait()
+				wg.Wait()
 			}
 
 			lb.Lock()
+			defer lb.Unlock()
 			if lb.numRemovedServers != test.wantNumRemovedServers {
 				t.Errorf("got %d removed servers, wanted %d", lb.numRemovedServers, test.wantNumRemovedServers)
 			}
@@ -185,7 +189,6 @@ func TestSetBackendsConfiguration(t *testing.T) {
 			if lb.numUpsertedServers != test.wantNumUpsertedServers {
 				t.Errorf("got %d upserted servers, wanted %d", lb.numUpsertedServers, test.wantNumUpsertedServers)
 			}
-			lb.Unlock()
 		})
 	}
 }

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -o errexit
 set -o pipefail
 set -o nounset
@@ -86,7 +86,7 @@ case "${glide_command}" in
       usage
       exit 1
     fi
-    GLIDE_ARGS=("$1" "${GLIDE_ARGS[@]}")
+    GLIDE_ARGS+=("$1")
     shift
     ;;
 
