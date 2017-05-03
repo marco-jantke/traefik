@@ -1,34 +1,42 @@
 {{$apps := .Applications}}
 [backends]{{range .Tasks}}
   {{ if not ( eq .State "TASK_KILLING" ) }}
-    [backends."{{getBackend . $apps}}".servers."server-{{.ID | replace "." "-"}}"]
-    url = "{{getProtocol . $apps}}://{{.Host}}:{{getPort . $apps}}"
+    [backends."backend{{getBackend . $apps}}".servers."server-{{.ID | replace "." "-"}}"]
+    url = "{{getProtocol . $apps}}://{{getBackendServer . $apps}}:{{getPort . $apps}}"
     weight = 1
-  {{ end }}
+  {{end}}
 {{end}}
 
 {{range .Applications}}
+{{ if hasMaxConnLabels . }}
+      [backends."backend{{getFrontendBackend . }}".maxconn]
+        amount = {{getMaxConnAmount . }}
+        extractorfunc = "{{getMaxConnExtractorFunc . }}"
+{{end}}
 {{ if hasLoadBalancerLabels . }}
-      [backends."{{getFrontendBackend . }}".loadbalancer]
-        method = "wrr"
+      [backends."backend{{getFrontendBackend . }}".loadbalancer]
+        method = "{{getLoadBalancerMethod . }}"
         sticky = {{getSticky .}}
 {{end}}
+{{ if hasCircuitBreakerLabels . }}
+      [backends."backend{{getFrontendBackend . }}".circuitbreaker]
+        expression = "{{getCircuitBreakerExpression . }}"
+{{end}}
 {{ if hasHealthCheckLabels . }}
-      [backends."{{getFrontendBackend . }}".healthcheck]
-        URL = "{{getHealthCheckPath . }}"
+      [backends."backend{{getFrontendBackend . }}".healthcheck]
+        path = "{{getHealthCheckPath . }}"
         interval = "{{getHealthCheckInterval . }}"
 {{end}}
 {{end}}
 
-[frontends]{{range $apps}}
-  [frontends."{{.ID}}"]
-  backend = "{{.ID}}"
-  #passHostHeader = {{getPassHostHeader .}}
+[frontends]{{range .Applications}}
+  [frontends."frontend{{.ID | replace "/" "-"}}"]
+  backend = "backend{{getFrontendBackend .}}"
   passHostHeader = false
-  priority = 1
+  priority = {{getPriority .}}
   entryPoints = [{{range getEntryPoints .}}
     "{{.}}",
   {{end}}]
-    [frontends."{{.ID}}".routes."{{.ID}}"]
+    [frontends."frontend{{.ID | replace "/" "-"}}".routes."route-host{{.ID | replace "/" "-"}}"]
     rule = "{{getFrontendRule .}}"
 {{end}}
