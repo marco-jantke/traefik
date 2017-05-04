@@ -32,13 +32,13 @@ print-%: ; @echo $*=$($*)
 default: binary
 
 all: generate-webui build ## validate all checks, build linux binary, run all tests\ncross non-linux binaries
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh
 
 binary: generate-webui build ## build the linux binary
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate binary
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate binary
 
 crossbinary: generate-webui build ## cross build the non-linux binaries
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate crossbinary
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary
 
 crossbinary-parallel:
 	$(MAKE) generate-webui
@@ -52,16 +52,16 @@ crossbinary-others: generate-webui build
 	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-others
 
 test: build ## run the unit and integration tests
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate test-unit binary test-integration
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate test-unit binary test-integration
 
 test-unit: build ## run the unit tests
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate test-unit
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate test-unit
 
 test-integration: build ## run the integration tests
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate binary test-integration
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate binary test-integration
 
 validate: build  ## validate gofmt, golint and go vet
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh  validate-glide validate-gofmt validate-govet validate-golint validate-misspell validate-vendor
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh  validate-glide validate-gofmt validate-govet validate-golint validate-misspell validate-vendor
 
 build: dist
 	docker build $(DOCKER_BUILD_ARGS) -t "$(TRAEFIK_DEV_IMAGE)" -f build.Dockerfile .
