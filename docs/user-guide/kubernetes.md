@@ -203,7 +203,7 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: traefik-ui.local
+  - host: traefik-ui.minikube
     http:
       paths:
       - backend:
@@ -216,7 +216,7 @@ spec:
 kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/ui.yaml
 ```
 
-Now lets setup an entry in our /etc/hosts file to route `traefik-ui.local`
+Now lets setup an entry in our /etc/hosts file to route `traefik-ui.minikube`
 to our cluster.
 
 > In production you would want to set up real dns entries.
@@ -224,10 +224,10 @@ to our cluster.
 > You can get the ip address of your minikube instance by running `minikube ip`
 
 ```shell
-echo "$(minikube ip) traefik-ui.local" | sudo tee -a /etc/hosts
+echo "$(minikube ip) traefik-ui.minikube" | sudo tee -a /etc/hosts
 ```
 
-We should now be able to visit [traefik-ui.local](http://traefik-ui.local) in the browser and view the Træfik Web UI.
+We should now be able to visit [traefik-ui.minikube](http://traefik-ui.minikube) in the browser and view the Træfik Web UI.
 
 ## Name based routing
 
@@ -410,21 +410,21 @@ metadata:
     kubernetes.io/ingress.class: traefik
 spec:
   rules:
-  - host: stilton.local
+  - host: stilton.minikube
     http:
       paths:
       - path: /
         backend:
           serviceName: stilton
           servicePort: http
-  - host: cheddar.local
+  - host: cheddar.minikube
     http:
       paths:
       - path: /
         backend:
           serviceName: cheddar
           servicePort: http
-  - host: wensleydale.local
+  - host: wensleydale.minikube
     http:
       paths:
       - path: /
@@ -440,7 +440,7 @@ spec:
 kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/cheese-ingress.yaml
 ```
 
-Now visit the [Træfik dashboard](http://traefik-ui.local/) and you should
+Now visit the [Træfik dashboard](http://traefik-ui.minikube/) and you should
 see a frontend for each host. Along with a backend listing for each service
 with a Server set up for each pod.
 
@@ -448,12 +448,12 @@ If you edit your `/etc/hosts` again you should be able to access the cheese
 websites in your browser.
 
 ```shell
-echo "$(minikube ip) stilton.local cheddar.local wensleydale.local" | sudo tee -a /etc/hosts
+echo "$(minikube ip) stilton.minikube cheddar.minikube wensleydale.minikube" | sudo tee -a /etc/hosts
 ```
 
-* [Stilton](http://stilton.local/)
-* [Cheddar](http://cheddar.local/)
-* [Wensleydale](http://wensleydale.local/)
+* [Stilton](http://stilton.minikube/)
+* [Cheddar](http://cheddar.minikube/)
+* [Wensleydale](http://wensleydale.minikube/)
 
 ## Path based routing
 
@@ -474,7 +474,7 @@ metadata:
     traefik.frontend.rule.type: pathprefixstrip
 spec:
   rules:
-  - host: cheeses.local
+  - host: cheeses.minikube
     http:
       paths:
       - path: /stilton
@@ -501,14 +501,14 @@ kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/exa
 ```
 
 ```shell
-echo "$(minikube ip) cheeses.local" | sudo tee -a /etc/hosts
+echo "$(minikube ip) cheeses.minikube" | sudo tee -a /etc/hosts
 ```
 
 You should now be able to visit the websites in your browser.
 
-* [cheeses.local/stilton](http://cheeses.local/stilton/)
-* [cheeses.local/cheddar](http://cheeses.local/cheddar/)
-* [cheeses.local/wensleydale](http://cheeses.local/wensleydale/)
+* [cheeses.minikube/stilton](http://cheeses.minikube/stilton/)
+* [cheeses.minikube/cheddar](http://cheeses.minikube/cheddar/)
+* [cheeses.minikube/wensleydale](http://cheeses.minikube/wensleydale/)
 
 ## Disable passing the Host header
 
