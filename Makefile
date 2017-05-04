@@ -22,32 +22,46 @@ DUST_TRAEFIK_IMAGE := docker-registry.hc.ag/treimann/traefik:dust-$(shell git re
 INTEGRATION_OPTS := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST)", -v "/var/run/docker.sock:/var/run/docker.sock")
 
 DOCKER_BUILD_ARGS := $(if $(DOCKER_VERSION), "--build-arg=DOCKER_VERSION=$(DOCKER_VERSION)",)
-DOCKER_RUN_TRAEFIK := docker run $(INTEGRATION_OPTS) -it $(TRAEFIK_ENVS) $(TRAEFIK_MOUNT) "$(TRAEFIK_DEV_IMAGE)"
+DOCKER_RUN_OPTS := $(TRAEFIK_ENVS) $(TRAEFIK_MOUNT) "$(TRAEFIK_DEV_IMAGE)"
+DOCKER_RUN_TRAEFIK := docker run $(INTEGRATION_OPTS) -it $(DOCKER_RUN_OPTS)
+DOCKER_RUN_TRAEFIK_NOTTY := docker run $(INTEGRATION_OPTS) -i $(DOCKER_RUN_OPTS)
+
 
 print-%: ; @echo $*=$($*)
 
 default: binary
 
 all: generate-webui build ## validate all checks, build linux binary, run all tests\ncross non-linux binaries
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh
 
 binary: generate-webui build ## build the linux binary
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate binary
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate binary
 
 crossbinary: generate-webui build ## cross build the non-linux binaries
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate crossbinary
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary
+
+crossbinary-parallel:
+	$(MAKE) generate-webui
+	$(MAKE) build
+	$(MAKE) crossbinary-default crossbinary-others
+
+crossbinary-default: generate-webui build
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-default
+
+crossbinary-others: generate-webui build
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-others
 
 test: build ## run the unit and integration tests
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate test-unit binary test-integration
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate test-unit binary test-integration
 
 test-unit: build ## run the unit tests
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate test-unit
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate test-unit
 
 test-integration: build ## run the integration tests
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh generate binary test-integration
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate binary test-integration
 
 validate: build  ## validate gofmt, golint and go vet
-	$(DOCKER_RUN_TRAEFIK) ./script/make.sh  validate-glide validate-gofmt validate-govet validate-golint validate-misspell validate-vendor
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh  validate-glide validate-gofmt validate-govet validate-golint validate-misspell validate-vendor
 
 build: dist
 	docker build $(DOCKER_BUILD_ARGS) -t "$(TRAEFIK_DEV_IMAGE)" -f build.Dockerfile .
