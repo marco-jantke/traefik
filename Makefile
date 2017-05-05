@@ -11,8 +11,9 @@ TRAEFIK_ENVS := \
 
 SRCS = $(shell git ls-files '*.go' | grep -v '^vendor/' | grep -v '^integration/vendor/')
 
+CONTAINER_DIR := "/go/src/github.com/containous/traefik"
 BIND_DIR := "dist"
-TRAEFIK_MOUNT := -v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/containous/traefik/$(BIND_DIR)"
+TRAEFIK_MOUNT := -v "$(CURDIR)/$(BIND_DIR):$(CONTAINER_DIR)/$(BIND_DIR)"
 
 GIT_BRANCH := $(subst heads/,,$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null))
 TRAEFIK_DEV_IMAGE := traefik-dev$(if $(GIT_BRANCH),:$(GIT_BRANCH))
@@ -101,6 +102,10 @@ lint:
 
 fmt:
 	gofmt -s -l -w $(SRCS)
+
+clean: build
+	## Delete directories and files created by the build container possibly owned by root inside the build container.
+	docker run --rm $(TRAEFIK_MOUNT) -v "$(CURDIR)/static:$(CONTAINER_DIR)/static" "$(TRAEFIK_DEV_IMAGE)" ./script/clean.sh
 
 pull-images:
 	for f in $(shell find ./integration/resources/compose/ -type f); do \
