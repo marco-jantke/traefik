@@ -5,14 +5,10 @@ set -o nounset
 
 PROJECT_DIR_REL='src/github.com/containous/traefik'
 
-### Set GOPATH.
-if [[ ${GOPATH:-} == "" ]]; then
-  # GOPATH not set -- assume we are running inside Jenkins and use ${WORKSPACE}.
-  GOPATH="${WORKSPACE:-}"
-  if [[ -z ${GOPATH} ]]; then
-    echo 'cannot set GOPATH from WORKSPACE: Environment variable is not set' >&2
-    exit 1
-  fi
+### Check GOPATH.
+if [[ "${GOPATH:-}" == "" ]]; then
+  echo 'GOPATH is not set' >&2
+  exit 1
 fi
 
 ### Execute pipeline.
