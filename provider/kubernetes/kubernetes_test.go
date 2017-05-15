@@ -1859,6 +1859,21 @@ func TestKubeAPIErrors(t *testing.T) {
 						},
 					},
 				},
+				{
+					Host: "missing_endpoint_subsets",
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{
+								{
+									Backend: v1beta1.IngressBackend{
+										ServiceName: "missing_endpoint_subsets_service",
+										ServicePort: intstr.FromInt(80),
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}}
@@ -1972,6 +1987,21 @@ func TestMissingResources(t *testing.T) {
 						},
 					},
 				},
+				{
+					Host: "missing_endpoint_subsets",
+					IngressRuleValue: v1beta1.IngressRuleValue{
+						HTTP: &v1beta1.HTTPIngressRuleValue{
+							Paths: []v1beta1.HTTPIngressPath{
+								{
+									Backend: v1beta1.IngressBackend{
+										ServiceName: "missing_endpoint_subsets_service",
+										ServicePort: intstr.FromInt(80),
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}}
@@ -2006,6 +2036,21 @@ func TestMissingResources(t *testing.T) {
 				},
 			},
 		},
+		{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "missing_endpoint_subsets_service",
+				UID:       "4",
+				Namespace: "testing",
+			},
+			Spec: v1.ServiceSpec{
+				ClusterIP: "10.0.0.4",
+				Ports: []v1.ServicePort{
+					{
+						Port: 80,
+					},
+				},
+			},
+		},
 	}
 	endpoints := []*v1.Endpoints{
 		{
@@ -2028,6 +2073,14 @@ func TestMissingResources(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "missing_endpoint_subsets_service",
+				UID:       "4",
+				Namespace: "testing",
+			},
+			Subsets: []v1.EndpointSubset{},
 		},
 	}
 
@@ -2075,6 +2128,14 @@ func TestMissingResources(t *testing.T) {
 					Sticky: false,
 				},
 			},
+			"missing_endpoint_subsets": {
+				Servers:        map[string]types.Server{},
+				CircuitBreaker: nil,
+				LoadBalancer: &types.LoadBalancer{
+					Method: "wrr",
+					Sticky: false,
+				},
+			},
 		},
 		Frontends: map[string]*types.Frontend{
 			"fully_working": {
@@ -2092,6 +2153,15 @@ func TestMissingResources(t *testing.T) {
 				Routes: map[string]types.Route{
 					"missing_endpoints": {
 						Rule: "Host:missing_endpoints",
+					},
+				},
+			},
+			"missing_endpoint_subsets": {
+				Backend:        "missing_endpoint_subsets",
+				PassHostHeader: true,
+				Routes: map[string]types.Route{
+					"missing_endpoint_subsets": {
+						Rule: "Host:missing_endpoint_subsets",
 					},
 				},
 			},
