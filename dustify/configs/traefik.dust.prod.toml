@@ -123,3 +123,19 @@ domain = "mesos.prod.hcg.cloud"
 # Default: true
 #
 exposedByDefault = true
+
+################################################################
+# Kubernetes Ingress configuration backend
+################################################################
+# Enable Kubernetes Ingress configuration backend
+#
+# Optional
+#
+[kubernetes]
+
+# Array of namespaces to watch.
+#
+# Optional
+# Default: ["default"].
+#
+namespaces = ["production"]
