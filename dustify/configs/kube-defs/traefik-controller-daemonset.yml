@@ -21,7 +21,7 @@ spec:
         configMap:
           name: traefik-config
       containers:
-      - image: docker-registry.hc.ag/treimann/traefik:dust-%VERSION%
+      - image: docker-registry.hc.ag/dust/traefik:%VERSION%
         name: traefik-ingress-lb
         imagePullPolicy: IfNotPresent
         ports:
