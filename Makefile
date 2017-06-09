@@ -7,7 +7,8 @@ TRAEFIK_ENVS := \
 	-e VERBOSE \
 	-e VERSION \
 	-e CODENAME \
-	-e TESTDIRS
+	-e TESTDIRS \
+	-e CI
 
 SRCS = $(shell git ls-files '*.go' | grep -v '^vendor/' | grep -v '^integration/vendor/')
 
@@ -16,7 +17,7 @@ BIND_DIR := "dist"
 TRAEFIK_MOUNT := -v "$(CURDIR)/$(BIND_DIR):$(CONTAINER_DIR)/$(BIND_DIR)"
 
 GIT_BRANCH := $(subst heads/,,$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null))
-TRAEFIK_DEV_IMAGE := traefik-dev$(if $(GIT_BRANCH),:$(GIT_BRANCH))
+TRAEFIK_DEV_IMAGE := traefik-dev$(if $(GIT_BRANCH),:$(subst /,-,$(GIT_BRANCH)))
 REPONAME := $(shell echo $(REPO) | tr '[:upper:]' '[:lower:]')
 TRAEFIK_IMAGE := $(if $(REPONAME),$(REPONAME),"containous/traefik")
 DUST_TRAEFIK_IMAGE := docker-registry.hc.ag/treimann/traefik:dust-$(shell git rev-parse --short HEAD)
@@ -51,6 +52,24 @@ crossbinary-default: generate-webui build
 
 crossbinary-others: generate-webui build
 	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-others
+
+crossbinary-parallel:
+	$(MAKE) generate-webui
+	$(MAKE) build crossbinary-default crossbinary-others
+
+crossbinary-default: generate-webui build
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-default
+
+crossbinary-default-parallel:
+	$(MAKE) generate-webui
+	$(MAKE) build crossbinary-default
+
+crossbinary-others: generate-webui build
+	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-others
+
+crossbinary-others-parallel:
+	$(MAKE) generate-webui
+	$(MAKE) build crossbinary-others
 
 test: build ## run the unit and integration tests
 	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate test-unit binary test-integration

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codegangsta/negroni"
 	"github.com/vulcand/oxy/utils"
 )
 
@@ -62,3 +63,28 @@ func (sb *SaveFrontend) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	sb.next.ServeHTTP(rw, r)
 }
+
+//-------------------------------------------------------------------------------------------------
+// the next 3 function (SaveNegroniFrontend, NewSaveNegroniFrontend, ServeHTTP) are temporary,
+// DON'T USE THIS FUNCTION, MUST BE SUPPRESS BEFORE MERGING #1485
+
+// SaveNegroniFrontend sends the frontend name to the logger. These are sometimes used with a corresponding
+// SaveBackend handler, but not always. For example, redirected requests don't reach a backend.
+type SaveNegroniFrontend struct {
+	next         negroni.Handler
+	frontendName string
+}
+
+// NewSaveNegroniFrontend creates a SaveFrontend handler.
+func NewSaveNegroniFrontend(next negroni.Handler, frontendName string) negroni.Handler {
+	return &SaveNegroniFrontend{next, frontendName}
+}
+
+func (sb *SaveNegroniFrontend) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	table := GetLogDataTable(r)
+	table.Core[FrontendName] = strings.TrimPrefix(sb.frontendName, "frontend-")
+
+	sb.next.ServeHTTP(rw, r, next)
+}
+
+//-------------------------------------------------------------------------------------------------

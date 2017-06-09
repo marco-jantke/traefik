@@ -42,6 +42,7 @@
 
 # Access logs file
 #
+# Deprecated - see [accessLog] lower down
 # Optional
 #
 # accessLogsFile = "log/access.log"
@@ -117,6 +118,7 @@ Supported backends:
 - Zookeeper
 - Etcd
 - Consul Catalog
+- Rancher
 
 Supported filters:
 
@@ -148,6 +150,24 @@ Supported filters:
 # [consulCatalog]
 #   endpoint = 127.0.0.1:8500
 #   constraints = ["tag==api", "tag!=v*-beta"]
+```
+
+## Access log definition
+
+The standard access log uses the textual Common Log Format (CLF), extended with additional fields.
+Alternatively logs can be written in JSON. 
+Using the default CLF option is simple, e.g.
+
+```toml
+[accessLog]
+  filePath = "/path/to/access.log"
+```
+
+To write JSON format logs, specify `json` as the format:
+```toml
+[accessLog]
+  filePath   = "/path/to/access.log"
+  format     = "json"
 ```
 
 ## Entrypoints definition
@@ -457,7 +477,7 @@ defaultEntryPoints = ["http", "https"]
     url = "http://172.17.0.3:80"
     weight = 1
   [backends.backend2]
-    [backends.backend1.maxconn]
+    [backends.backend2.maxconn]
       amount = 10
       extractorfunc = "request.host"
     [backends.backend2.LoadBalancer]
@@ -478,6 +498,13 @@ defaultEntryPoints = ["http", "https"]
   backend = "backend1"
   passHostHeader = true
   priority = 10
+
+  # restrict access to this frontend to the specified list of IPv4/IPv6 CIDR Nets
+  # an unset or empty list allows all Source-IPs to access
+  # if one of the Net-Specifications are invalid, the whole list is invalid
+  # and allows all Source-IPs to access.
+  whitelistSourceRange = ["10.42.0.0/16", "152.89.1.33/32", "afed:be44::/16"]
+
   entrypoints = ["https"] # overrides defaultEntryPoints
     [frontends.frontend2.routes.test_1]
     rule = "Host:{subdomain:[a-z]+}.localhost"
@@ -524,7 +551,7 @@ filename = "rules.toml"
     url = "http://172.17.0.3:80"
     weight = 1
   [backends.backend2]
-    [backends.backend1.maxconn]
+    [backends.backend2.maxconn]
       amount = 10
       extractorfunc = "request.host"
     [backends.backend2.LoadBalancer]
@@ -850,7 +877,7 @@ swarmmode = false
 
 Labels can be used on containers to override default behaviour:
 
-- `traefik.backend=foo`: give the name `backend-foo` to the generated backend for this container.
+- `traefik.backend=foo`: give the name `foo` to the generated backend for this container.
 - `traefik.backend.maxconn.amount=10`: set a maximum number of connections to the backend. Must be used in conjunction with the below label to take effect.
 - `traefik.backend.maxconn.extractorfunc=client.ip`: set the function to be used against the request to determine what to limit maximum connections to the backend by. Must be used in conjunction with the above label to take effect.
 - `traefik.backend.loadbalancer.method=drr`: override the default `wrr` load balancer algorithm
@@ -866,7 +893,7 @@ Labels can be used on containers to override default behaviour:
 - `traefik.frontend.priority=10`: override default frontend priority
 - `traefik.frontend.entryPoints=http,https`: assign this frontend to entry points `http` and `https`. Overrides `defaultEntryPoints`.
 - `traefik.frontend.auth.basic=test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0`: Sets a Basic Auth for that frontend with the users test:test and test2:test2
-- `traefik.docker.network`: Set the docker network to use for connections to this container. If a container is linked to several networks, be sure to set the proper network name (you can check with docker inspect <container_id>) otherwise it will randomly pick one (depending on how docker is returning them). For instance when deploying docker `stack` from compose files, the compose defined networks will be prefixed with the `stack` name.
+- `traefik.frontend.whitelistSourceRange: "1.2.3.0/24, fe80::/16"`: List of IP-Ranges which are allowed to access. An unset or empty list allows all Source-IPs to access. If one of the Net-Specifications are invalid, the whole list is invalid and allows all Source-IPs to access.- `traefik.docker.network`: Set the docker network to use for connections to this container. If a container is linked to several networks, be sure to set the proper network name (you can check with docker inspect <container_id>) otherwise it will randomly pick one (depending on how docker is returning them). For instance when deploying docker `stack` from compose files, the compose defined networks will be prefixed with the `stack` name.
 
 If several ports need to be exposed from a container, the services labels can be used
 - `traefik.<service-name>.port=443`: create a service binding with frontend/backend using this port. Overrides `traefik.port`.
@@ -1185,6 +1212,29 @@ You can find here an example [ingress](https://raw.githubusercontent.com/contain
 Additionally, an annotation can be used on Kubernetes services to set the [circuit breaker expression](https://docs.traefik.io/basics/#backends) for a backend.
 
 - `traefik.backend.circuitbreaker: <expression>`: set the circuit breaker expression for the backend (Default: nil).
+
+As known from nginx when used as Kubernetes Ingress Controller, a List of IP-Ranges which are allowed to access can be configured by using an ingress annotation:
+
+- `ingress.kubernetes.io/whitelist-source-range: "1.2.3.0/24, fe80::/16"`
+
+An unset or empty list allows all Source-IPs to access. If one of the Net-Specifications are invalid, the whole list is invalid and allows all Source-IPs to access.
+
+
+### Authentication
+
+Is possible to add additional authentication annotations in the Ingress rule.
+The source of the authentication is a secret that contains usernames and passwords inside the the key auth.
+
+- `ingress.kubernetes.io/auth-type`: `basic`
+- `ingress.kubernetes.io/auth-secret`: contains the usernames and passwords with access to the paths defined in the Ingress Rule.
+
+The secret must be created in the same namespace as the Ingress rule.
+
+Limitations:
+
+- Basic authentication only.
+- Realm not configurable; only `traefik` default.
+- Secret must contain only single file.
 
 ## Consul backend
 
@@ -1718,7 +1768,6 @@ RefreshSeconds = 15
 ```
 
 Items in the `dynamodb` table must have three attributes: 
-
 
 - `id` : string
     - The id is the primary key.

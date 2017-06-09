@@ -1,4 +1,4 @@
-hash: 396973f46da862c17375db1c7e3e2eb878d0b05cbd06c869cf9c2e52224514fa
+hash: 550071c1f71bd8626fb6f60b5761e9eac8dfc38ceb3c06e64243ee3818992d2a
 updated: 2017-06-02T08:52:01.278709099+02:00
 imports:
 - name: cloud.google.com/go
@@ -391,6 +391,7 @@ imports:
   subpackages:
   - assert
   - mock
+  - require
 - name: github.com/thoas/stats
   version: 152b5d051953fdb6e45f14b6826962aadc032324
 - name: github.com/timewasted/linode
