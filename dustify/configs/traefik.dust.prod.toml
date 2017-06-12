@@ -138,4 +138,4 @@ exposedByDefault = true
 # Optional
 # Default: ["default"].
 #
-namespaces = ["production"]
+namespaces = ["sandbox", "development", "production"]
