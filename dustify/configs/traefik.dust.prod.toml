@@ -90,11 +90,14 @@ ReadOnly = true
 # Mesos/Marathon configuration backend
 ################################################################
 
+### dust: disable Marathon/Mesos for now until cross-cluster routing becomes relevant,
+### favoring ease of Kubernetes usage for now.
+
 # Enable Marathon configuration backend
 #
 # Optional
 #
-[marathon]
+#[marathon]
 
 # Marathon server endpoint.
 # You can also specify multiple endpoint for Marathon:
