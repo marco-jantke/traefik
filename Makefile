@@ -20,7 +20,6 @@ GIT_BRANCH := $(subst heads/,,$(shell git rev-parse --abbrev-ref HEAD 2>/dev/nul
 TRAEFIK_DEV_IMAGE := traefik-dev$(if $(GIT_BRANCH),:$(subst /,-,$(GIT_BRANCH)))
 REPONAME := $(shell echo $(REPO) | tr '[:upper:]' '[:lower:]')
 TRAEFIK_IMAGE := $(if $(REPONAME),$(REPONAME),"containous/traefik")
-DUST_TRAEFIK_IMAGE := docker-registry.hc.ag/treimann/traefik:dust-$(shell git rev-parse --short HEAD)
 INTEGRATION_OPTS := $(if $(MAKE_DOCKER_HOST),-e "DOCKER_HOST=$(MAKE_DOCKER_HOST)", -v "/var/run/docker.sock:/var/run/docker.sock")
 
 DOCKER_BUILD_ARGS := $(if $(DOCKER_VERSION), "--build-arg=DOCKER_VERSION=$(DOCKER_VERSION)",)
@@ -33,7 +32,7 @@ print-%: ; @echo $*=$($*)
 
 default: binary
 
-all: generate-webui build ## validate all checks, build linux binary, run all tests\ncross non-linux binaries
+all: generate-webui build ## validate all checks, build linux binary, run all tests across non-linux binaries
 	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh
 
 binary: generate-webui build ## build the linux binary
@@ -97,9 +96,6 @@ shell: build ## start a shell inside the build env
 
 image: binary ## build a docker traefik image
 	docker build -t $(TRAEFIK_IMAGE) .
-
-dust-image: binary
-	docker build -t $(DUST_TRAEFIK_IMAGE) .
 
 dist:
 	mkdir dist

@@ -105,7 +105,7 @@ ReadOnly = true
 #
 # Required
 #
-endpoint = "http://mesos-master1.mes3.bot.hc.lan:8080"
+endpoint = "http://mesos-master1.mes3.bot.hc.lan:8080,mesos-master2.mes3.bot.hc.lan:8080,mesos-master3.mes3.bot.hc.lan:8080"
 
 # Enable watch Marathon changes
 #
@@ -125,4 +125,4 @@ domain = "mes3.bot.hc.lan"
 # Optional
 # Default: true
 #
-exposedByDefault = false
+exposedByDefault = true
