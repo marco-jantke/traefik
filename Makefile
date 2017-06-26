@@ -41,11 +41,6 @@ binary: generate-webui build ## build the linux binary
 crossbinary: generate-webui build ## cross build the non-linux binaries
 	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary
 
-crossbinary-parallel:
-	$(MAKE) generate-webui
-	$(MAKE) build
-	$(MAKE) crossbinary-default crossbinary-others
-
 crossbinary-default: generate-webui build
 	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-default
 
@@ -56,33 +51,9 @@ crossbinary-parallel:
 	$(MAKE) generate-webui
 	$(MAKE) build crossbinary-default crossbinary-others
 
-crossbinary-default: generate-webui build
-	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-default
-
 crossbinary-default-parallel:
 	$(MAKE) generate-webui
 	$(MAKE) build crossbinary-default
-
-crossbinary-others: generate-webui build
-	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-others
-
-crossbinary-others-parallel:
-	$(MAKE) generate-webui
-	$(MAKE) build crossbinary-others
-
-crossbinary-parallel:
-	$(MAKE) generate-webui
-	$(MAKE) build crossbinary-default crossbinary-others
-
-crossbinary-default: generate-webui build
-	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-default
-
-crossbinary-default-parallel:
-	$(MAKE) generate-webui
-	$(MAKE) build crossbinary-default
-
-crossbinary-others: generate-webui build
-	$(DOCKER_RUN_TRAEFIK_NOTTY) ./script/make.sh generate crossbinary-others
 
 crossbinary-others-parallel:
 	$(MAKE) generate-webui
@@ -136,9 +107,14 @@ lint:
 fmt:
 	gofmt -s -l -w $(SRCS)
 
-clean: build
-	## Delete directories and files created by the build container possibly owned by root inside the build container.
-	docker run --rm $(TRAEFIK_MOUNT) -v "$(CURDIR)/static:$(CONTAINER_DIR)/static" "$(TRAEFIK_DEV_IMAGE)" ./script/clean.sh
+clean:
+	## Delete directories and files created by the build container possibly owned by root, inside a docker container.
+	docker run --rm -v "$(CURDIR)":$(CONTAINER_DIR) ubuntu:14.04 $(CONTAINER_DIR)/script/clean.sh
+
+cleanup-integration-tests:
+	for f in $(shell find ./integration/resources/compose/ -type f); do \
+		docker-compose -f $$f down --volumes; \
+	done
 
 pull-images:
 	for f in $(shell find ./integration/resources/compose/ -type f); do \
