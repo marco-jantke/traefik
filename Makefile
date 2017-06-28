@@ -109,7 +109,7 @@ fmt:
 
 clean:
 	## Delete directories and files created by the build container possibly owned by root, inside a docker container.
-	docker run --rm -v "$(CURDIR)":$(CONTAINER_DIR) ubuntu:14.04 $(CONTAINER_DIR)/script/clean.sh
+	docker run --rm -v "$(CURDIR)":$(CONTAINER_DIR) bitnami/minideb $(CONTAINER_DIR)/script/clean.sh
 
 cleanup-integration-tests:
 	for f in $(shell find ./integration/resources/compose/ -type f); do \
