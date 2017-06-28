@@ -13,22 +13,21 @@ fi
 
 ### Execute pipeline.
 cd "${GOPATH}/${PROJECT_DIR_REL}"
+
+echo 'clean'
+make clean
+
+echo 'cleanup previous state'
+make cleanup-integration-tests
+
 echo 'running validations'
 make validate
+
 echo 'running unit tests'
 make test-unit
+
 echo 'pulling Docker images for integration tests'
 make pull-images
-# Run flaky integration tests up to 3 times.
-succ=
-for attempt in 1 2 3; do
-  echo "running integration tests (attempt #${attempt})"
-  if make test-integration; then
-    succ=1
-    break
-  fi
-done
-if [[ -z "${succ}" ]]; then
-  echo 'integration tests failed.' >&2
-  exit 1
-fi
+
+echo 'running integration tests'
+make test-integration
