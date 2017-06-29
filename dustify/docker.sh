@@ -22,11 +22,16 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 readonly tag="$1"
+readonly image="docker-registry.hc.ag/dust/traefik:${tag}"
 
 ### Build and push Docker image.
-readonly image="docker-registry.hc.ag/dust/traefik:${tag}"
-echo "building Docker image ${image}"
 cd "${GOPATH}/${PROJECT_DIR_REL}"
+
+echo "cleaning"
+make clean
+
+echo "building Docker image ${image}"
 REPO="${image}" make image
+
 echo 'pushing Docker image'
 docker push "${image}"
