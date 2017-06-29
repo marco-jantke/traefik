@@ -14,6 +14,7 @@ kubectl create configmap traefik-config \
   --namespace traefik \
   --from-file="${CONFIGDIR}/traefik.dust.prod.toml" \
   --from-file="${CONFIGDIR}/marathon.dust.tmpl" \
+  --from-file="${CONFIGDIR}/rules.toml" \
   --dry-run \
   -o yaml | kubectl replace configmap traefik-config --namespace traefik -f -
 

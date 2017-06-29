@@ -1,0 +1,10 @@
+[backends]
+  [backends.kube-dashboard]
+    [backends.kube-dashboard.servers.server]
+      url = "http://kubernetes-dashboard.kube-system"
+
+[frontends]
+  [frontends.kube-dashboard]
+  backend = "kube-dashboard"
+    [frontends.kube-dashboard.routes.route]
+    rule = "PathPrefixStrip:/kube-dashboard"

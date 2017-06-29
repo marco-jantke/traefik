@@ -34,6 +34,7 @@ spec:
           name: config
         args:
         - --configfile=/etc/traefik/traefik.dust.prod.toml
+        - --file.filename=/etc/traefik/rules.toml
         - --marathon.filename=/etc/traefik/marathon.dust.tmpl
       nodeSelector:
         dust.role: traefik
