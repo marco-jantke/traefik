@@ -62,6 +62,5 @@ fi
 
 "${PROJECTDIR}/dist/traefik" \
   --configfile="${CONFIGDIR}/traefik.dust.toml" \
-  --marathon.filename="${CONFIGDIR}/marathon.dust.tmpl" \
   ${kube_params} \
   "$@"
