@@ -11,6 +11,8 @@ if [[ "${GOPATH:-}" == "" ]]; then
   exit 1
 fi
 
+export CI=true
+
 ### Execute pipeline.
 cd "${GOPATH}/${PROJECT_DIR_REL}"
 
