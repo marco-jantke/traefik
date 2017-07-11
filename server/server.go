@@ -199,35 +199,48 @@ func (server *Server) startHTTPServers() {
 	server.serverEntryPoints = server.buildEntryPoints(server.globalConfiguration)
 
 	for newServerEntryPointName, newServerEntryPoint := range server.serverEntryPoints {
-		serverMiddlewares := []negroni.Handler{middlewares.NegroniRecoverHandler(), stats}
-		if server.accessLoggerMiddleware != nil {
-			serverMiddlewares = append(serverMiddlewares, server.accessLoggerMiddleware)
-		}
-		if server.metricsEnabled {
-			serverMiddlewares = append(serverMiddlewares, middlewares.NewEntryPointMetricsMiddleware(server.metricsRegistry, newServerEntryPointName))
-		}
-		if server.globalConfiguration.Web != nil && server.globalConfiguration.Web.Statistics != nil {
-			statsRecorder = middlewares.NewStatsRecorder(server.globalConfiguration.Web.Statistics.RecentErrors)
-			serverMiddlewares = append(serverMiddlewares, statsRecorder)
-		}
-		if server.globalConfiguration.EntryPoints[newServerEntryPointName].Auth != nil {
-			authMiddleware, err := middlewares.NewAuthenticator(server.globalConfiguration.EntryPoints[newServerEntryPointName].Auth)
-			if err != nil {
-				log.Fatal("Error starting server: ", err)
-			}
-			serverMiddlewares = append(serverMiddlewares, authMiddleware)
-		}
-		if server.globalConfiguration.EntryPoints[newServerEntryPointName].Compress {
-			serverMiddlewares = append(serverMiddlewares, &middlewares.Compress{})
-		}
-		newsrv, err := server.prepareServer(newServerEntryPointName, newServerEntryPoint.httpRouter, server.globalConfiguration.EntryPoints[newServerEntryPointName], serverMiddlewares...)
-		if err != nil {
-			log.Fatal("Error preparing server: ", err)
-		}
-		serverEntryPoint := server.serverEntryPoints[newServerEntryPointName]
-		serverEntryPoint.httpServer = newsrv
+		serverEntryPoint := server.setupServerEntryPoint(newServerEntryPointName, newServerEntryPoint)
 		go server.startServer(serverEntryPoint.httpServer, server.globalConfiguration)
 	}
+}
+
+func (server *Server) setupServerEntryPoint(newServerEntryPointName string, newServerEntryPoint *serverEntryPoint) *serverEntryPoint {
+	serverMiddlewares := []negroni.Handler{middlewares.NegroniRecoverHandler(), stats}
+	if server.accessLoggerMiddleware != nil {
+		serverMiddlewares = append(serverMiddlewares, server.accessLoggerMiddleware)
+	}
+	if server.metricsEnabled {
+		serverMiddlewares = append(serverMiddlewares, middlewares.NewEntryPointMetricsMiddleware(server.metricsRegistry, newServerEntryPointName))
+	}
+	if server.globalConfiguration.Web != nil && server.globalConfiguration.Web.Statistics != nil {
+		statsRecorder = middlewares.NewStatsRecorder(server.globalConfiguration.Web.Statistics.RecentErrors)
+		serverMiddlewares = append(serverMiddlewares, statsRecorder)
+	}
+	if server.globalConfiguration.EntryPoints[newServerEntryPointName].Auth != nil {
+		authMiddleware, err := middlewares.NewAuthenticator(server.globalConfiguration.EntryPoints[newServerEntryPointName].Auth)
+		if err != nil {
+			log.Fatal("Error starting server: ", err)
+		}
+		serverMiddlewares = append(serverMiddlewares, authMiddleware)
+	}
+	if server.globalConfiguration.EntryPoints[newServerEntryPointName].Compress {
+		serverMiddlewares = append(serverMiddlewares, &middlewares.Compress{})
+	}
+	if len(server.globalConfiguration.EntryPoints[newServerEntryPointName].WhitelistSourceRange) > 0 {
+		ipWhitelistMiddleware, err := middlewares.NewIPWhitelister(server.globalConfiguration.EntryPoints[newServerEntryPointName].WhitelistSourceRange)
+		if err != nil {
+			log.Fatal("Error starting server: ", err)
+		}
+		serverMiddlewares = append(serverMiddlewares, ipWhitelistMiddleware)
+	}
+	newsrv, err := server.prepareServer(newServerEntryPointName, newServerEntryPoint.httpRouter, server.globalConfiguration.EntryPoints[newServerEntryPointName], serverMiddlewares...)
+	if err != nil {
+		log.Fatal("Error preparing server: ", err)
+	}
+	serverEntryPoint := server.serverEntryPoints[newServerEntryPointName]
+	serverEntryPoint.httpServer = newsrv
+
+	return serverEntryPoint
 }
 
 func (server *Server) listenProviders(stop chan bool) {
@@ -735,24 +748,14 @@ func (server *Server) loadConfig(configurations configs, globalConfiguration Glo
 							rebalancer, _ = roundrobin.NewRebalancer(rr, roundrobin.RebalancerLogger(oxyLogger), roundrobin.RebalancerStickySession(sticky))
 						}
 						lb = rebalancer
-						for serverName, server := range configuration.Backends[frontend.Backend].Servers {
-							url, err := url.Parse(server.URL)
-							if err != nil {
-								log.Errorf("Error parsing server URL %s: %v", server.URL, err)
-								log.Errorf("Skipping frontend %s...", frontendName)
-								continue frontend
-							}
-							log.Debugf("Creating server %s at %s with weight %d", serverName, url.String(), server.Weight)
-							if err := rebalancer.UpsertServer(url, roundrobin.Weight(server.Weight)); err != nil {
-								log.Errorf("Error adding server %s to load balancer: %v", server.URL, err)
-								log.Errorf("Skipping frontend %s...", frontendName)
-								continue frontend
-							}
-							hcOpts := parseHealthCheckOptions(rebalancer, frontend.Backend, configuration.Backends[frontend.Backend].HealthCheck, globalConfiguration.HealthCheck)
-							if hcOpts != nil {
-								log.Debugf("Setting up backend health check %s", *hcOpts)
-								backendsHealthcheck[frontend.Backend] = healthcheck.NewBackendHealthCheck(*hcOpts)
-							}
+						if err := configureLBServers(rebalancer, configuration, frontend); err != nil {
+							log.Errorf("Skipping frontend %s...", frontendName)
+							continue frontend
+						}
+						hcOpts := parseHealthCheckOptions(rebalancer, frontend.Backend, configuration.Backends[frontend.Backend].HealthCheck, globalConfiguration.HealthCheck)
+						if hcOpts != nil {
+							log.Debugf("Setting up backend health check %s", *hcOpts)
+							backendsHealthcheck[frontend.Backend] = healthcheck.NewBackendHealthCheck(*hcOpts)
 						}
 					case types.Wrr:
 						log.Debugf("Creating load-balancer wrr")
@@ -765,19 +768,9 @@ func (server *Server) loadConfig(configurations configs, globalConfiguration Glo
 							}
 						}
 						lb = rr
-						for serverName, server := range configuration.Backends[frontend.Backend].Servers {
-							url, err := url.Parse(server.URL)
-							if err != nil {
-								log.Errorf("Error parsing server URL %s: %v", server.URL, err)
-								log.Errorf("Skipping frontend %s...", frontendName)
-								continue frontend
-							}
-							log.Debugf("Creating server %s at %s with weight %d", serverName, url.String(), server.Weight)
-							if err := rr.UpsertServer(url, roundrobin.Weight(server.Weight)); err != nil {
-								log.Errorf("Error adding server %s to load balancer: %v", server.URL, err)
-								log.Errorf("Skipping frontend %s...", frontendName)
-								continue frontend
-							}
+						if err := configureLBServers(rr, configuration, frontend); err != nil {
+							log.Errorf("Skipping frontend %s...", frontendName)
+							continue frontend
 						}
 						hcOpts := parseHealthCheckOptions(rr, frontend.Backend, configuration.Backends[frontend.Backend].HealthCheck, globalConfiguration.HealthCheck)
 						if hcOpts != nil {
@@ -785,6 +778,22 @@ func (server *Server) loadConfig(configurations configs, globalConfiguration Glo
 							backendsHealthcheck[frontend.Backend] = healthcheck.NewBackendHealthCheck(*hcOpts)
 						}
 					}
+
+					if len(frontend.Errors) > 0 {
+						for _, errorPage := range frontend.Errors {
+							if configuration.Backends[errorPage.Backend] != nil && configuration.Backends[errorPage.Backend].Servers["error"].URL != "" {
+								errorPageHandler, err := middlewares.NewErrorPagesHandler(errorPage, configuration.Backends[errorPage.Backend].Servers["error"].URL)
+								if err != nil {
+									log.Errorf("Error creating custom error page middleware, %v", err)
+								} else {
+									negroni.Use(errorPageHandler)
+								}
+							} else {
+								log.Errorf("Error Page is configured for Frontend %s, but either Backend %s is not set or Backend URL is missing", frontendName, errorPage.Backend)
+							}
+						}
+					}
+
 					maxConns := configuration.Backends[frontend.Backend].MaxConn
 					if maxConns != nil && maxConns.Amount != 0 {
 						extractFunc, err := utils.NewExtractor(maxConns.ExtractorFunc)
@@ -881,6 +890,22 @@ func (server *Server) loadConfig(configurations configs, globalConfiguration Glo
 		serverEntryPoint.httpRouter.GetHandler().SortRoutes()
 	}
 	return serverEntryPoints, nil
+}
+
+func configureLBServers(lb healthcheck.LoadBalancer, config *types.Configuration, frontend *types.Frontend) error {
+	for serverName, server := range config.Backends[frontend.Backend].Servers {
+		u, err := url.Parse(server.URL)
+		if err != nil {
+			log.Errorf("Error parsing server URL %s: %v", server.URL, err)
+			return err
+		}
+		log.Debugf("Creating server %s at %s with weight %d", serverName, u, server.Weight)
+		if err := lb.UpsertServer(u, roundrobin.Weight(server.Weight)); err != nil {
+			log.Errorf("Error adding server %s to load balancer: %v", server.URL, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func configureIPWhitelistMiddleware(whitelistSourceRanges []string) (negroni.Handler, error) {
