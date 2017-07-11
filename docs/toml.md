@@ -95,6 +95,13 @@
 #
 # InsecureSkipVerify = true
 
+# Register Certificates in the RootCA. This certificates will be use for backends calls.
+# Note: You can use file path or cert content directly
+# Optional
+# Default: []
+#
+# RootCAs = [ "/mycert.cert" ]
+
 # Entrypoints to be used by frontends that do not specify any entrypoint.
 # Each frontend can specify its own entrypoints.
 #
@@ -272,6 +279,12 @@ To write JSON format logs, specify `json` as the format:
 #   address = ":80"
 #   compress = true
 
+# To enable IP whitelisting at the entrypoint level:
+# [entryPoints]
+#   [entryPoints.http]
+#   address = ":80"
+#   whiteListSourceRange = ["127.0.0.1/32"]
+
 [entryPoints]
   [entryPoints.http]
   address = ":80"
@@ -445,7 +458,7 @@ entryPoint = "https"
 
 ## File backend
 
-Like any other reverse proxy, Træfik can be configured with a file. You have two choices:
+Like any other reverse proxy, Træfik can be configured with a file. You have three choices:
 
 - simply add your configuration at the end of the global configuration file `traefik.toml`:
 
@@ -586,6 +599,13 @@ filename = "rules.toml"
     rule = "Path:/test"
 ```
 
+- or you could have multiple .toml files in a directory:
+ 
+```toml
+[file]
+directory = "/path/to/config/"
+```
+
 If you want Træfik to watch file changes automatically, just add:
 
 ```toml
@@ -649,7 +669,7 @@ address = ":8080"
 ![Web UI Providers](img/web.frontend.png)
 ![Web UI Health](img/traefik-health.png)
 
-- `/ping`: `GET` simple endpoint to check for Træfik process liveness.
+- `/ping`: A simple endpoint to check for Træfik process liveness. Supports HTTP `GET` and `HEAD` requests.
 
 ```shell
 $ curl -sv "http://localhost:8080/ping"
@@ -897,8 +917,9 @@ Labels can be used on containers to override default behaviour:
 - `traefik.frontend.passHostHeader=true`: forward client `Host` header to the backend.
 - `traefik.frontend.priority=10`: override default frontend priority
 - `traefik.frontend.entryPoints=http,https`: assign this frontend to entry points `http` and `https`. Overrides `defaultEntryPoints`.
-- `traefik.frontend.auth.basic=test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0`: Sets a Basic Auth for that frontend with the users test:test and test2:test2
-- `traefik.frontend.whitelistSourceRange: "1.2.3.0/24, fe80::/16"`: List of IP-Ranges which are allowed to access. An unset or empty list allows all Source-IPs to access. If one of the Net-Specifications are invalid, the whole list is invalid and allows all Source-IPs to access.- `traefik.docker.network`: Set the docker network to use for connections to this container. If a container is linked to several networks, be sure to set the proper network name (you can check with docker inspect <container_id>) otherwise it will randomly pick one (depending on how docker is returning them). For instance when deploying docker `stack` from compose files, the compose defined networks will be prefixed with the `stack` name.
+- `traefik.frontend.auth.basic=test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0`: Sets basic authentication for that frontend with the usernames and passwords test:test and test2:test2, respectively
+- `traefik.frontend.whitelistSourceRange: "1.2.3.0/24, fe80::/16"`: List of IP-Ranges which are allowed to access. An unset or empty list allows all Source-IPs to access. If one of the Net-Specifications are invalid, the whole list is invalid and allows all Source-IPs to access.
+- `traefik.docker.network`: Set the docker network to use for connections to this container. If a container is linked to several networks, be sure to set the proper network name (you can check with docker inspect <container_id>) otherwise it will randomly pick one (depending on how docker is returning them). For instance when deploying docker `stack` from compose files, the compose defined networks will be prefixed with the `stack` name.
 
 If several ports need to be exposed from a container, the services labels can be used
 - `traefik.<service-name>.port=443`: create a service binding with frontend/backend using this port. Overrides `traefik.port`.
@@ -1053,6 +1074,7 @@ Labels can be used on containers to override default behaviour:
 - `traefik.frontend.passHostHeader=true`: forward client `Host` header to the backend.
 - `traefik.frontend.priority=10`: override default frontend priority
 - `traefik.frontend.entryPoints=http,https`: assign this frontend to entry points `http` and `https`. Overrides `defaultEntryPoints`.
+- `traefik.frontend.auth.basic=test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0`: Sets basic authentication for that frontend with the usernames and passwords test:test and test2:test2, respectively
 
 
 ## Mesos generic backend
@@ -1198,9 +1220,13 @@ Træfik can be configured to use Kubernetes Ingress as a backend configuration:
 #
 # namespaces = ["default", "production"]
 
-# See: http://kubernetes.io/docs/user-guide/labels/#list-and-watch-filtering
-# labelselector = "A and not B"
+# Ingress label selector to identify Ingress objects that should be processed.
+# See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors for details.
 #
+# Optional
+# Default: empty (process all Ingresses)
+#
+# labelselector = "A and not B"
 ```
 
 Annotations can be used on containers to override default behaviour for the whole Ingress resource:
@@ -1681,33 +1707,68 @@ RefreshSeconds = 15
 #
 ExposedByDefault = false
 
-# Filter services with unhealthy states and health states
+# Filter services with unhealthy states and inactive states
 #
 # Optional
 # Default: false
 #
-EnableServiceHealthFilter = false
-
-# Endpoint to use when connecting to Rancher
-#
-# Required
-# Endpoint = "http://rancherserver.example.com/v1"
-
-# AccessKey to use when connecting to Rancher
-#
-# Required
-# AccessKey = "XXXXXXXXXXXXXXXXXXXX"
-
-# SecretKey to use when connecting to Rancher
-#
-# Required
-# SecretKey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
+EnableServiceHealthFilter = true
 ```
 
-As traefik needs access to the rancher API, you need to set the `endpoint`, `accesskey` and `secretkey` parameters. 
+```toml
+# Enable Rancher metadata service configuration backend instead of the API
+# configuration backend
+#
+# Optional
+# Default: false
+#
+[rancher.metadata]
 
-To enable traefik to fetch information about the Environment it's deployed in only, you need to create an `Environment API Key`. This can be found within the API Key advanced options.
+# Poll the Rancher metadata service for changes every `rancher.RefreshSeconds`
+# NOTE: this is less accurate than the default long polling technique which
+# will provide near instantaneous updates to Traefik
+#
+# Optional
+# Default: false
+#
+IntervalPoll = true
+
+# Prefix used for accessing the Rancher metadata service
+#
+# Optional
+# Default: "/latest"
+#
+Prefix = "/2016-07-29"
+```
+
+```toml
+# Enable Rancher API configuration backend
+#
+# Optional
+# Default: true
+#
+[rancher.api]
+
+# Endpoint to use when connecting to the Rancher API
+#
+# Required
+Endpoint = "http://rancherserver.example.com/v1"
+
+# AccessKey to use when connecting to the Rancher API
+#
+# Required
+AccessKey = "XXXXXXXXXXXXXXXXXXXX"
+
+# SecretKey to use when connecting to the Rancher API
+#
+# Required
+SecretKey = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+If Traefik needs access to the Rancher API, you need to set the `endpoint`, `accesskey` and `secretkey` parameters. 
+
+To enable traefik to fetch information about the Environment it's deployed in only, you need to create an `Environment API Key`.
+This can be found within the API Key advanced options.
 
 Labels can be used on task containers to override default behaviour:
 
@@ -1718,7 +1779,7 @@ Labels can be used on task containers to override default behaviour:
 - `traefik.frontend.passHostHeader=true`: forward client `Host` header to the backend.
 - `traefik.frontend.priority=10`: override default frontend priority
 - `traefik.frontend.entryPoints=http,https`: assign this frontend to entry points `http` and `https`. Overrides `defaultEntryPoints`.
-- `traefik.frontend.auth.basic=test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0`: Sets a Basic Auth for that frontend with the users test:test and test2:test2
+- `traefik.frontend.auth.basic=test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0`: Sets basic authentication for that frontend with the usernames and passwords test:test and test2:test2, respectively
 
 
 ## DynamoDB backend
