@@ -3,64 +3,98 @@ package middlewares
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/codegangsta/negroni"
 	"github.com/containous/traefik/metrics"
 	gokitmetrics "github.com/go-kit/kit/metrics"
 )
 
-// EntryPointMetricsMiddleware is a Negroni compatible Handler that collects
-// request metrics on an entry point.
-type EntryPointMetricsMiddleware struct {
-	registry       metrics.Registry
-	entryPointName string
-}
+const (
+	protoHTTP      = "http"
+	protoSSE       = "sse"
+	protoWebsocket = "websocket"
+)
 
-// NewEntryPointMetricsMiddleware creates a new EntryPointMetricsMiddleware.
-func NewEntryPointMetricsMiddleware(registry metrics.Registry, entryPointName string) *EntryPointMetricsMiddleware {
-	return &EntryPointMetricsMiddleware{
-		registry:       registry,
-		entryPointName: entryPointName,
+// NewEntryPointMetricsMiddleware creates a new metrics middleware for an Entrypoint.
+func NewEntryPointMetricsMiddleware(registry metrics.Registry, entryPointName string) negroni.Handler {
+	return &metricsMiddleware{
+		reqsCounter:          registry.EntrypointReqsCounter(),
+		reqDurationHistogram: registry.EntrypointReqDurationHistogram(),
+		openConnsGauge:       registry.EntrypointOpenConnsGauge(),
+		baseLabels:           []string{"entrypoint", entryPointName},
 	}
 }
 
-func (m *EntryPointMetricsMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	start := time.Now()
-	recorder := serveHTTP(rw, r, next)
-
-	labels := []string{"code", strconv.Itoa(recorder.statusCode), "method", r.Method, "entrypoint", m.entryPointName}
-	m.registry.EntrypointReqsCounter().With(labels...).Add(1)
-	m.registry.EntrypointReqDurationHistogram().With(labels...).Observe(float64(time.Since(start).Seconds()))
-}
-
-// BackendMetricsMiddleware is a Negroni compatible Handler that collects
-// request metrics on an entry point.
-type BackendMetricsMiddleware struct {
-	registry    metrics.Registry
-	backendName string
-}
-
-// NewBackendMetricsMiddleware creates a new BackendMetricsMiddleware.
-func NewBackendMetricsMiddleware(registry metrics.Registry, backendName string) *BackendMetricsMiddleware {
-	return &BackendMetricsMiddleware{
-		registry:    registry,
-		backendName: backendName,
+// NewBackendMetricsMiddleware creates a new metrics middleware for a Backend.
+func NewBackendMetricsMiddleware(registry metrics.Registry, backendName string) negroni.Handler {
+	return &metricsMiddleware{
+		reqsCounter:          registry.BackendReqsCounter(),
+		reqDurationHistogram: registry.BackendReqDurationHistogram(),
+		openConnsGauge:       registry.BackendOpenConnsGauge(),
+		baseLabels:           []string{"backend", backendName},
 	}
 }
 
-func (m *BackendMetricsMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	start := time.Now()
-	recorder := serveHTTP(rw, r, next)
-
-	labels := []string{"code", strconv.Itoa(recorder.statusCode), "method", r.Method, "backend", m.backendName}
-	m.registry.BackendReqsCounter().With(labels...).Add(1)
-	m.registry.BackendReqDurationHistogram().With(labels...).Observe(float64(time.Since(start).Seconds()))
+type metricsMiddleware struct {
+	reqsCounter          gokitmetrics.Counter
+	reqDurationHistogram gokitmetrics.Histogram
+	openConnsGauge       gokitmetrics.Gauge
+	baseLabels           []string
+	openConns            int64
 }
 
-func serveHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) *responseRecorder {
-	prw := &responseRecorder{rw, http.StatusOK}
-	next(prw, r)
-	return prw
+func (m *metricsMiddleware) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	labels := []string{"method", r.Method, "protocol", getRequestProtocol(r)}
+	labels = append(labels, m.baseLabels...)
+
+	openConns := atomic.AddInt64(&m.openConns, 1)
+	m.openConnsGauge.With(labels...).Set(float64(openConns))
+	defer func(labelValues []string) {
+		openConns := atomic.AddInt64(&m.openConns, -1)
+		m.openConnsGauge.With(labelValues...).Set(float64(openConns))
+	}(labels)
+
+	start := time.Now()
+	recorder := &responseRecorder{rw, http.StatusOK}
+	next(recorder, r)
+
+	labels = append(labels, "code", strconv.Itoa(recorder.statusCode))
+	m.reqsCounter.With(labels...).Add(1)
+	m.reqDurationHistogram.With(labels...).Observe(float64(time.Since(start).Seconds()))
+}
+
+func getRequestProtocol(req *http.Request) string {
+	switch {
+	case isWebsocketRequest(req):
+		return protoWebsocket
+	case isSSERequest(req):
+		return protoSSE
+	default:
+		return protoHTTP
+	}
+}
+
+// isWebsocketRequest determines if the specified HTTP request is a websocket handshake request.
+func isWebsocketRequest(req *http.Request) bool {
+	return containsHeader(req, "Connection", "upgrade") && containsHeader(req, "Upgrade", "websocket")
+}
+
+// isSSERequest determines if the specified HTTP request is a request for an event subscription.
+func isSSERequest(req *http.Request) bool {
+	return containsHeader(req, "Accept", "text/event-stream")
+}
+
+func containsHeader(req *http.Request, name, value string) bool {
+	items := strings.Split(req.Header.Get(name), ",")
+	for _, item := range items {
+		if value == strings.ToLower(strings.TrimSpace(item)) {
+			return true
+		}
+	}
+	return false
 }
 
 type retryMetrics interface {

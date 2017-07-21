@@ -14,10 +14,12 @@ type Registry interface {
 	// entry point metrics
 	EntrypointReqsCounter() metrics.Counter
 	EntrypointReqDurationHistogram() metrics.Histogram
+	EntrypointOpenConnsGauge() metrics.Gauge
 
 	// backend metrics
 	BackendReqsCounter() metrics.Counter
 	BackendReqDurationHistogram() metrics.Histogram
+	BackendOpenConnsGauge() metrics.Gauge
 	BackendRetriesCounter() metrics.Counter
 }
 
@@ -42,8 +44,10 @@ func (r *voidRegistry) ConfigReloadFailuresCounter() metrics.Counter      { retu
 func (r *voidRegistry) LastConfigReloadSuccessGauge() metrics.Gauge       { return r.g }
 func (r *voidRegistry) EntrypointReqsCounter() metrics.Counter            { return r.c }
 func (r *voidRegistry) EntrypointReqDurationHistogram() metrics.Histogram { return r.h }
+func (r *voidRegistry) EntrypointOpenConnsGauge() metrics.Gauge           { return r.g }
 func (r *voidRegistry) BackendReqsCounter() metrics.Counter               { return r.c }
 func (r *voidRegistry) BackendReqDurationHistogram() metrics.Histogram    { return r.h }
+func (r *voidRegistry) BackendOpenConnsGauge() metrics.Gauge              { return r.g }
 func (r *voidRegistry) BackendRetriesCounter() metrics.Counter            { return r.c }
 
 type voidCounter struct{}

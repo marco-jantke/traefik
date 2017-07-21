@@ -18,10 +18,12 @@ const (
 	// entrypoint
 	entrypointReqsTotalName   = metricNamePrefix + "entrypoint_requests_total"
 	entrypointReqDurationName = metricNamePrefix + "entrypoint_request_duration_seconds"
+	entrypointOpenConnsName   = metricNamePrefix + "entrypoint_open_connections"
 
 	// backend level
 	backendReqsTotalName    = metricNamePrefix + "backend_requests_total"
 	backendReqDurationName  = metricNamePrefix + "backend_request_duration_seconds"
+	backendOpenConnsName    = metricNamePrefix + "backend_open_connections"
 	backendRetriesTotalName = metricNamePrefix + "backend_retries_total"
 )
 
@@ -48,23 +50,31 @@ func RegisterPrometheusMetrics(config *types.Prometheus) Registry {
 
 	entrypointReqs := prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Name: entrypointReqsTotalName,
-		Help: "How many HTTP requests processed on an entrypoint, partitioned by status code and method.",
-	}, []string{"code", "method", "entrypoint"})
+		Help: "How many HTTP requests processed on an entrypoint, partitioned by status code, protocol, and method.",
+	}, []string{"code", "method", "protocol", "entrypoint"})
 	entrypointReqDurations := prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 		Name:    entrypointReqDurationName,
-		Help:    "How long it took to process the request on an entrypoint, partitioned by status code.",
+		Help:    "How long it took to process the request on an entrypoint, partitioned by status code, protocol, and method.",
 		Buckets: buckets,
-	}, []string{"code", "method", "entrypoint"})
+	}, []string{"code", "method", "protocol", "entrypoint"})
+	entrypointOpenConns := prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Name: entrypointOpenConnsName,
+		Help: "How many open connections exist on an entrypoint, partitioned by method and protocol.",
+	}, []string{"method", "protocol", "entrypoint"})
 
 	backendReqs := prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Name: backendReqsTotalName,
-		Help: "How many HTTP requests processed on a backend, partitioned by status code and method.",
-	}, []string{"code", "method", "backend"})
+		Help: "How many HTTP requests processed on a backend, partitioned by status code, protocol, and method.",
+	}, []string{"code", "method", "protocol", "backend"})
 	backendReqDurations := prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 		Name:    backendReqDurationName,
-		Help:    "How long it took to process the request on a backend, partitioned by status code.",
+		Help:    "How long it took to process the request on a backend, partitioned by status code, protocol, and method.",
 		Buckets: buckets,
-	}, []string{"code", "method", "backend"})
+	}, []string{"code", "method", "protocol", "backend"})
+	backendOpenConns := prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Name: backendOpenConnsName,
+		Help: "How many open connections exist on a backend, partitioned by method and protocol.",
+	}, []string{"method", "protocol", "backend"})
 	backendRetries := prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Name: backendRetriesTotalName,
 		Help: "How many request retries happened on a backend.",
@@ -76,8 +86,10 @@ func RegisterPrometheusMetrics(config *types.Prometheus) Registry {
 		lastConfigReloadSuccessGauge:   lastConfigReloadSuccess,
 		entrypointReqsCounter:          entrypointReqs,
 		entrypointReqDurationHistogram: entrypointReqDurations,
+		entrypointOpenConnsGauge:       entrypointOpenConns,
 		backendReqsCounter:             backendReqs,
 		backendReqDurationHistogram:    backendReqDurations,
+		backendOpenConnsGauge:          backendOpenConns,
 		backendRetriesCounter:          backendRetries,
 	}
 }
@@ -88,8 +100,10 @@ type prometheusRegistry struct {
 	lastConfigReloadSuccessGauge   metrics.Gauge
 	entrypointReqsCounter          metrics.Counter
 	entrypointReqDurationHistogram metrics.Histogram
+	entrypointOpenConnsGauge       metrics.Gauge
 	backendReqsCounter             metrics.Counter
 	backendReqDurationHistogram    metrics.Histogram
+	backendOpenConnsGauge          metrics.Gauge
 	backendRetriesCounter          metrics.Counter
 }
 
@@ -113,12 +127,20 @@ func (r *prometheusRegistry) EntrypointReqDurationHistogram() metrics.Histogram 
 	return r.entrypointReqDurationHistogram
 }
 
+func (r *prometheusRegistry) EntrypointOpenConnsGauge() metrics.Gauge {
+	return r.entrypointOpenConnsGauge
+}
+
 func (r *prometheusRegistry) BackendReqsCounter() metrics.Counter {
 	return r.backendReqsCounter
 }
 
 func (r *prometheusRegistry) BackendReqDurationHistogram() metrics.Histogram {
 	return r.backendReqDurationHistogram
+}
+
+func (r *prometheusRegistry) BackendOpenConnsGauge() metrics.Gauge {
+	return r.backendOpenConnsGauge
 }
 
 func (r *prometheusRegistry) BackendRetriesCounter() metrics.Counter {

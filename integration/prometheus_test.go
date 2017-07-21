@@ -82,6 +82,7 @@ func (s *PrometheusSuite) verifyMetricsOutput(c *check.C, responseBody io.ReadCl
 			labels: map[string]string{
 				"code":       "200",
 				"method":     http.MethodGet,
+				"protocol":   "http",
 				"entrypoint": "http",
 			},
 			assert: buildCounterAssert(c, "traefik_entrypoint_requests_total", 2),
@@ -91,27 +92,48 @@ func (s *PrometheusSuite) verifyMetricsOutput(c *check.C, responseBody io.ReadCl
 			labels: map[string]string{
 				"code":       "200",
 				"method":     http.MethodGet,
+				"protocol":   "http",
 				"entrypoint": "http",
 			},
 			assert: buildHistogramAssert(c, "traefik_entrypoint_request_duration_seconds", 2),
 		},
 		{
+			name: "traefik_entrypoint_open_connections",
+			labels: map[string]string{
+				"method":     http.MethodGet,
+				"protocol":   "http",
+				"entrypoint": "http",
+			},
+			assert: buildGaugeAssert(c, "traefik_entrypoint_open_connections", 0),
+		},
+		{
 			name: "traefik_backend_requests_total",
 			labels: map[string]string{
-				"code":    "200",
-				"method":  http.MethodGet,
-				"backend": "backend1",
+				"code":     "200",
+				"method":   http.MethodGet,
+				"protocol": "http",
+				"backend":  "backend1",
 			},
 			assert: buildCounterAssert(c, "traefik_backend_requests_total", 2),
 		},
 		{
 			name: "traefik_backend_request_duration_seconds",
 			labels: map[string]string{
-				"code":    "200",
-				"method":  http.MethodGet,
-				"backend": "backend1",
+				"code":     "200",
+				"method":   http.MethodGet,
+				"protocol": "http",
+				"backend":  "backend1",
 			},
 			assert: buildHistogramAssert(c, "traefik_backend_request_duration_seconds", 2),
+		},
+		{
+			name: "traefik_backend_open_connections",
+			labels: map[string]string{
+				"method":   http.MethodGet,
+				"protocol": "http",
+				"backend":  "backend1",
+			},
+			assert: buildGaugeAssert(c, "traefik_backend_open_connections", 0),
 		},
 		{
 			name: "traefik_backend_retries_total",
@@ -172,6 +194,14 @@ func buildHistogramAssert(c *check.C, metricName string, expectedSampleCount int
 	return func(family *dto.MetricFamily) {
 		if sc := int(family.Metric[0].Histogram.GetSampleCount()); sc != expectedSampleCount {
 			c.Errorf("metric %s has sample count value %d, want %d", metricName, sc, expectedSampleCount)
+		}
+	}
+}
+
+func buildGaugeAssert(c *check.C, metricName string, expectedValue int) func(family *dto.MetricFamily) {
+	return func(family *dto.MetricFamily) {
+		if gv := int(family.Metric[0].Gauge.GetValue()); gv != expectedValue {
+			c.Errorf("metric %s has value %d, want %d", metricName, gv, expectedValue)
 		}
 	}
 }
