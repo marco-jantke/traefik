@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/codegangsta/negroni"
 	"github.com/containous/traefik/metrics"
 	gokitmetrics "github.com/go-kit/kit/metrics"
+	"github.com/urfave/negroni"
 )
 
 const (
