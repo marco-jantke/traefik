@@ -14,6 +14,11 @@ spec:
       labels:
         k8s-app: traefik-ingress-lb
         name: traefik-ingress-lb
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        dust.holidaycheck.com/app-id: "/traefik"
+        dust.holidaycheck.com/image: "docker-registry.hc.ag/dust/traefik:%VERSION%"
     spec:
       terminationGracePeriodSeconds: 60
       volumes:
@@ -35,6 +40,9 @@ spec:
         args:
         - --configfile=/etc/traefik/traefik.dust.prod.toml
         - --file.filename=/etc/traefik/rules.toml
+        env:
+        - name: MARATHON_APP_ID
+          value: "/traefik"
       serviceAccountName: traefik-controller
       nodeSelector:
         dust.role: traefik
