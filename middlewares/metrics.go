@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/multi"
@@ -86,11 +87,19 @@ func (m *MetricsWrapper) ServeHTTP(rw http.ResponseWriter, r *http.Request, next
 	prw := &responseRecorder{rw, http.StatusOK}
 	next(prw, r)
 
-	reqLabels := []string{"code", strconv.Itoa(prw.statusCode), "method", r.Method}
+	reqLabels := []string{"code", strconv.Itoa(prw.statusCode), "method", sanitizeRequestMethod(r.Method)}
 	m.Impl.getReqsCounter().With(reqLabels...).Add(1)
 
 	reqDurationLabels := []string{"code", strconv.Itoa(prw.statusCode)}
 	m.Impl.getReqDurationHistogram().With(reqDurationLabels...).Observe(float64(time.Since(start).Seconds()))
+}
+
+// sanitizeRequestMethod will change any invalid utf-8 string to INVALID.
+func sanitizeRequestMethod(method string) string {
+	if utf8.ValidString(method) == true {
+		return method
+	}
+	return "INVALID"
 }
 
 // MetricsRetryListener is an implementation of the RetryListener interface to
