@@ -1,12 +1,9 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	fmtlog "log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,7 +26,6 @@ import (
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/docker/libkv/store"
 	"github.com/satori/go.uuid"
-	"golang.org/x/net/http2"
 )
 
 func main() {
@@ -178,28 +174,6 @@ func run(traefikConfiguration *server.TraefikConfiguration) {
 	// load global configuration
 	globalConfiguration := traefikConfiguration.GlobalConfiguration
 
-	http.DefaultTransport.(*http.Transport).MaxIdleConnsPerHost = globalConfiguration.MaxIdleConnsPerHost
-	if globalConfiguration.InsecureSkipVerify {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-
-	if len(globalConfiguration.RootCAs) > 0 {
-		roots := x509.NewCertPool()
-		for _, cert := range globalConfiguration.RootCAs {
-			certContent, err := cert.Read()
-			if err != nil {
-				log.Error("Error while read RootCAs", err)
-				continue
-			}
-			roots.AppendCertsFromPEM(certContent)
-		}
-
-		tr := http.DefaultTransport.(*http.Transport)
-		tr.TLSClientConfig = &tls.Config{RootCAs: roots}
-
-		http2.ConfigureTransport(tr)
-	}
-
 	if globalConfiguration.File != nil && len(globalConfiguration.File.Filename) == 0 {
 		// no filename, setting to global config file
 		if len(traefikConfiguration.ConfigFile) != 0 {
@@ -254,16 +228,15 @@ func run(traefikConfiguration *server.TraefikConfiguration) {
 			log.Errorf("Failed to create log path %s: %s", dir, err)
 		}
 
-		fi, err := os.OpenFile(globalConfiguration.TraefikLogsFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		err = log.OpenFile(globalConfiguration.TraefikLogsFile)
 		defer func() {
-			if err := fi.Close(); err != nil {
-				log.Error("Error closing file", err)
+			if err := log.CloseFile(); err != nil {
+				log.Error("Error closing log", err)
 			}
 		}()
 		if err != nil {
 			log.Error("Error opening file", err)
 		} else {
-			log.SetOutput(fi)
 			log.SetFormatter(&logrus.TextFormatter{DisableColors: true, FullTimestamp: true, DisableSorting: true})
 		}
 	} else {

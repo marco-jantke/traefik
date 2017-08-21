@@ -25,6 +25,7 @@ func init() {
 	check.Suite(&SimpleSuite{})
 	check.Suite(&AccessLogSuite{})
 	check.Suite(&HTTPSSuite{})
+	check.Suite(&TimeoutSuite{})
 	check.Suite(&FileSuite{})
 	check.Suite(&HealthCheckSuite{})
 	check.Suite(&PrometheusSuite{})
@@ -41,6 +42,7 @@ func init() {
 	check.Suite(&ErrorPagesSuite{})
 	check.Suite(&WebsocketSuite{})
 	check.Suite(&GRPCSuite{})
+	check.Suite(&LogRotationSuite{})
 }
 
 var traefikBinary = "../dist/traefik"
