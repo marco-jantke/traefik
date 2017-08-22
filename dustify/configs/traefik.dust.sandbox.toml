@@ -1,0 +1,148 @@
+################################################################
+# Global configuration
+################################################################
+
+# Timeout in seconds.
+# Duration to give active requests a chance to finish during hot-reloads
+#
+# Optional
+# Default: 10
+#
+graceTimeOut = 3
+
+# Periodically check if a new version has been released
+#
+# Optional
+# Default: true
+#
+checkNewVersion = false
+
+# Log level
+#
+# Optional
+# Default: "ERROR"
+#
+logLevel = "INFO"
+
+# Entrypoints to be used by frontends that do not specify any entrypoint.
+# Each frontend can specify its own entrypoints.
+#
+# Optional
+# Default: ["http"]
+#
+defaultEntryPoints = ["http"]
+
+# Entrypoints definition
+#
+# Optional
+# Default:
+[entryPoints]
+  [entryPoints.http]
+  address = ":80"
+
+# Enable retry sending request if network error
+#
+# Optional
+#
+[retry]
+
+# Number of attempts
+#
+# Optional
+# Default: (number servers in backend) -1
+#
+attempts = 3
+
+# Enable access logs
+# By default it will write to stdout and produce logs in the textual
+# Common Log Format (CLF), extended with additional fields.
+#
+# Optional
+#
+[accessLog]
+
+# Sets the file path for the access log. If not specified, stdout will be used.
+# Intermediate directories are created if necessary.
+#
+# Optional
+# Default: os.Stdout
+#
+# filePath = "/path/to/log/log.txt"
+
+# Format is either "json" or "common".
+#
+# Optional
+# Default: "common"
+#
+format = "json"
+
+################################################################
+# Web configuration backend
+################################################################
+
+# Enable web configuration backend
+#
+# Optional
+#
+[web]
+
+# Web administration port
+#
+# Required
+#
+address = ":8080"
+
+# Set REST API to read-only mode
+#
+# Optional
+#
+ReadOnly = true
+
+# Enable more detailed statistics
+#
+[web.statistics]
+  RecentErrors = 10
+
+# To enable Traefik to export internal metrics to Prometheus
+#
+#[web.metrics.prometheus]
+#  Buckets=[0.5,0.9,0.95,0.99]
+
+
+################################################################
+# Mesos/Marathon configuration backend
+################################################################
+
+# Enable Marathon configuration backend
+#
+# Optional
+#
+[marathon]
+
+# Marathon server endpoint.
+# You can also specify multiple endpoint for Marathon:
+# endpoint := "http://10.241.1.71:8080,10.241.1.72:8080,10.241.1.73:8080"
+#
+# Required
+#
+endpoint = "http://mesos-master1.mes3.bot.hc.lan:8080,mesos-master2.mes3.bot.hc.lan:8080,mesos-master3.mes3.bot.hc.lan:8080"
+
+# Enable watch Marathon changes
+#
+# Optional
+#
+watch = true
+
+# Default domain used.
+# Can be overridden by setting the "traefik.domain" label on an application.
+#
+# Required
+#
+domain = "mes3.bot.hc.lan"
+
+# Expose Marathon apps by default in traefik
+#
+# Optional
+# Default: true
+#
+exposedByDefault = true
