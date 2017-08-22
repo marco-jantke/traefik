@@ -108,36 +108,16 @@ ReadOnly = true
 [web.metrics.prometheus]
   Buckets=[0.1,0.3,1.5,5.0]
 
-################################################################
-# File configuration backend
-################################################################
-
-# Enable file configuration backend
-#
-# Optional
-#
-[file]
-
-# Rules file
-# If defined, traefik will load rules from this file,
-# otherwise, it will load rules from current file (cf Sample rules below).
-#
-# Optional
-#
-# filename = "rules.toml"
 
 ################################################################
 # Mesos/Marathon configuration backend
 ################################################################
 
-### dust: disable Marathon/Mesos for now until cross-cluster routing becomes relevant,
-### favoring ease of Kubernetes usage for now.
-
 # Enable Marathon configuration backend
 #
 # Optional
 #
-#[marathon]
+[marathon]
 
 # Marathon server endpoint.
 # You can also specify multiple endpoint for Marathon:
@@ -145,7 +125,7 @@ ReadOnly = true
 #
 # Required
 #
-endpoint = "http://prod-dust-mesos-master1.c.hcg-cloud.internal:8080,prod-dust-mesos-master2.c.hcg-cloud.internal:8080,prod-dust-mesos-master3.c.hcg-cloud.internal:8080"
+endpoint = "http://mesos-master1.mes2.bot.hc.lan:8080,mesos-master2.mes2.bot.hc.lan:8080,mesos-master3.mes2.bot.hc.lan:8080"
 
 # Enable watch Marathon changes
 #
@@ -158,7 +138,7 @@ watch = true
 #
 # Required
 #
-domain = "mesos.prod.hcg.cloud"
+domain = "mes2.bot.hc.lan"
 
 # Expose Marathon apps by default in traefik
 #
@@ -166,19 +146,3 @@ domain = "mesos.prod.hcg.cloud"
 # Default: true
 #
 exposedByDefault = true
-
-################################################################
-# Kubernetes Ingress configuration backend
-################################################################
-# Enable Kubernetes Ingress configuration backend
-#
-# Optional
-#
-[kubernetes]
-
-# Array of namespaces to watch.
-#
-# Optional
-# Default: ["default"].
-#
-namespaces = ["sandbox", "development", "production"]
